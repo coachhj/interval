@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>인터벌 타이머</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0b0e11;
+    --surface: #14181d;
+    --surface-2: #1c2129;
+    --line: #262c35;
+    --text: #f5f3ee;
+    --muted: #8a93a0;
+    --work: #ff5a36;
+    --work-dim: #7a2c1c;
+    --rest: #2dd4bf;
+    --rest-dim: #17544c;
+    --ready: #ffd166;
+    --ready-dim: #6b5720;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Space Grotesk', sans-serif;
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+  }
+  .mono{ font-family:'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+
+  /* ---------- Shared ---------- */
+  .card{
+    width:100%;
+    max-width:460px;
+  }
+  .eyebrow{
+    font-size:18px;
+    letter-spacing:.18em;
+    text-transform:uppercase;
+    color:var(--muted);
+    margin:0 0 6px;
+  }
+  h1{
+    font-size:39px;
+    font-weight:700;
+    margin:0 0 28px;
+    letter-spacing:-0.01em;
+  }
+  button{
+    font-family:inherit;
+    cursor:pointer;
+    border:none;
+  }
+  button:focus-visible, input:focus-visible{
+    outline:2px solid var(--ready);
+    outline-offset:2px;
+  }
+
+  /* ---------- Setup screen ---------- */
+  #setup .field{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    padding:16px 4px;
+    border-bottom:1px solid var(--line);
+  }
+  #setup .field:last-of-type{ border-bottom:none; }
+  #setup label{
+    font-size:22.5px;
+    color:var(--text);
+    font-weight:500;
+  }
+  #setup .sub{
+    display:block;
+    font-size:18px;
+    color:var(--muted);
+    margin-top:2px;
+    font-weight:400;
+  }
+  .num-input{
+    display:flex;
+    align-items:center;
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:10px;
+    overflow:hidden;
+    flex-shrink:0;
+  }
+  .num-input button{
+    width:44px;
+    height:48px;
+    background:transparent;
+    color:var(--muted);
+    font-size:27px;
+    font-weight:600;
+  }
+  .num-input button:active{ background:var(--surface-2); color:var(--text); }
+  .num-input input{
+    width:76px;
+    height:48px;
+    text-align:center;
+    background:transparent;
+    border:none;
+    border-left:1px solid var(--line);
+    border-right:1px solid var(--line);
+    color:var(--text);
+    font-size:24px;
+    font-weight:600;
+  }
+  .num-input input::-webkit-outer-spin-button,
+  .num-input input::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+  .num-input input[type=number]{ -moz-appearance:textfield; }
+
+  .estimate{
+    margin-top:24px;
+    padding:14px 16px;
+    background:var(--surface);
+    border-radius:12px;
+    font-size:19.5px;
+    color:var(--muted);
+    display:flex;
+    justify-content:space-between;
+  }
+  .estimate strong{ color:var(--text); font-weight:600; }
+
+  .primary-btn{
+    width:100%;
+    margin-top:24px;
+    padding:18px;
+    border-radius:12px;
+    background:var(--ready);
+    color:#0b0e11;
+    font-size:24px;
+    font-weight:700;
+    letter-spacing:.01em;
+  }
+  .primary-btn:active{ transform: scale(0.98); }
+
+  /* ---------- Workout screen ---------- */
+  #workout{ display:none; text-align:center; }
+  .round-tag{
+    font-size:19.5px;
+    color:var(--muted);
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    margin-bottom:18px;
+  }
+  .round-tag strong{ color:var(--text); }
+
+  .ring-wrap{
+    position:relative;
+    width:280px;
+    height:280px;
+    margin:0 auto;
+  }
+  .ring-wrap svg{ width:100%; height:100%; transform:rotate(-90deg); }
+  .ring-track{ fill:none; stroke:var(--surface-2); stroke-width:10; }
+  .ring-progress{
+    fill:none;
+    stroke-width:10;
+    stroke-linecap:round;
+    transition: stroke 0.3s ease;
+  }
+  .ring-center{
+    position:absolute;
+    inset:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+  }
+  .phase-label{
+    font-size:21px;
+    font-weight:700;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    margin-bottom:8px;
+  }
+  .phase-label.work{ color:var(--work); }
+  .phase-label.rest{ color:var(--rest); }
+  .phase-label.ready{ color:var(--ready); }
+  .timer-num{
+    font-size:84px;
+    font-weight:700;
+    line-height:1;
+  }
+  .rep-count{
+    margin-top:6px;
+    font-size:21px;
+    color:var(--muted);
+  }
+  .rep-count strong{ color:var(--text); font-size:24px; }
+
+  .dots{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+    justify-content:center;
+    margin:22px 0 4px;
+    max-width:320px;
+    margin-left:auto;
+    margin-right:auto;
+  }
+  .dot{
+    width:8px;
+    height:8px;
+    border-radius:50%;
+    background:var(--surface-2);
+    transition: background 0.2s ease, transform 0.2s ease;
+  }
+  .dot.filled{ background:var(--work); transform:scale(1.15); }
+  .dot.current{ background:var(--ready); }
+
+  .controls{
+    display:flex;
+    gap:10px;
+    margin-top:32px;
+  }
+  .ctrl-btn{
+    flex:1;
+    padding:16px;
+    border-radius:12px;
+    font-size:22.5px;
+    font-weight:600;
+    background:var(--surface);
+    color:var(--text);
+    border:1px solid var(--line);
+  }
+  .ctrl-btn.main{
+    background:var(--work);
+    color:#0b0e11;
+    border:none;
+  }
+  .ctrl-btn:active{ transform: scale(0.97); }
+
+  #done{ display:none; text-align:center; }
+  #done .big{ font-size:33px; font-weight:700; margin-bottom:10px; }
+  #done .sub{ color:var(--muted); font-size:21px; margin-bottom:28px; }
+
+  .hidden{ display:none !important; }
+
+  @media (max-width:420px){
+    .ring-wrap{ width:240px; height:240px; }
+    .timer-num{ font-size:69px; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .dot, .ring-progress, .primary-btn, .ctrl-btn{ transition:none !important; }
+  }
+
+  .copyright{
+    position:fixed;
+    left:0;
+    right:0;
+    bottom:0;
+    z-index:999;
+    text-align:center;
+    font-size:15px;
+    color:var(--muted);
+    padding:6px 8px calc(6px + env(safe-area-inset-bottom));
+    background:rgba(11,14,17,0.85);
+    pointer-events:none;
+  }
+  body{ padding-bottom:64px; }
+
+  /* shared select / text inputs */
+  .ctl{
+    background:var(--surface);
+    color:var(--text);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:0 12px;
+    height:48px;
+    font-size:19.5px;
+    font-family:inherit;
+    min-width:0;
+  }
+  .ctl::placeholder{ color:var(--muted); }
+  .ctrl-btn.small{ flex:none; padding:0 18px; height:48px; }
+  .ctrl-btn:disabled{ opacity:.4; cursor:default; }
+
+  /* presets */
+  .preset-box{ padding:14px 4px 4px; }
+  .preset-title{ font-size:18px; color:var(--muted); letter-spacing:.04em; margin-bottom:8px; }
+  .preset-row{ display:flex; gap:8px; }
+  .preset-row .ctl{ flex:1; }
+  .preset-toggle{ display:block; width:100%; margin-top:14px; }
+  .preset-list{ margin-top:8px; border:1px solid var(--line); border-radius:12px; background:var(--surface); overflow:hidden; }
+  .preset-list[hidden]{ display:none; }
+  .preset-empty{ padding:16px; font-size:18px; color:var(--muted); line-height:1.5; }
+  .preset-item{ display:flex; align-items:stretch; border-bottom:1px solid var(--line); }
+  .preset-item:last-child{ border-bottom:none; }
+  .preset-item .load{ flex:1; min-width:0; text-align:left; background:transparent; color:var(--text); padding:14px 16px; font-size:22.5px; font-weight:600; }
+  .preset-item .load small{ display:block; margin-top:2px; font-size:18px; font-weight:400; color:var(--muted); word-break:keep-all; }
+  .preset-item .load:active{ background:var(--surface-2); }
+  .preset-item .del{ flex:none; background:transparent; color:var(--muted); padding:0 16px; font-size:18px; border-left:1px solid var(--line); }
+  .preset-item .del.armed{ color:var(--work); font-weight:700; }
+  .preset-msg{ min-height:27px; margin-top:8px; font-size:18px; color:var(--ready); }
+</style>
+</head>
+<body>
+
+<div class="card">
+
+  <!-- ===== Setup screen ===== -->
+  <div id="setup">
+    <p class="eyebrow">Interval Timer</p>
+    <h1>인터벌 타이머 설정</h1>
+
+    <div class="field">
+      <label>동작 시간
+        <span class="sub">한 동작에 걸리는 시간 (초)</span>
+      </label>
+      <div class="num-input">
+        <button type="button" data-target="workTime" data-step="-0.1">−</button>
+        <input id="workTime" type="number" step="0.1" min="0.1" value="2.0" inputmode="decimal">
+        <button type="button" data-target="workTime" data-step="0.1">+</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>반복 횟수
+        <span class="sub">한 라운드에 몇 회 반복할지</span>
+      </label>
+      <div class="num-input">
+        <button type="button" data-target="repCount" data-step="-1">−</button>
+        <input id="repCount" type="number" step="1" min="1" value="10" inputmode="numeric">
+        <button type="button" data-target="repCount" data-step="1">+</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>휴식 시간
+        <span class="sub">라운드 사이 쉬는 시간 (초)</span>
+      </label>
+      <div class="num-input">
+        <button type="button" data-target="restTime" data-step="-5">−</button>
+        <input id="restTime" type="number" step="1" min="1" value="60" inputmode="numeric">
+        <button type="button" data-target="restTime" data-step="5">+</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>라운드 수
+        <span class="sub">전체 몇 라운드 진행할지</span>
+      </label>
+      <div class="num-input">
+        <button type="button" data-target="rounds" data-step="-1">−</button>
+        <input id="rounds" type="number" step="1" min="1" value="5" inputmode="numeric">
+        <button type="button" data-target="rounds" data-step="1">+</button>
+      </div>
+    </div>
+
+    <div class="preset-box" style="margin-top:12px;">
+      <div class="preset-title">현재 설정을 프리셋으로 저장</div>
+      <div class="preset-row">
+        <input id="presetName" class="ctl" type="text" maxlength="20" placeholder="프리셋 이름" autocomplete="off">
+        <button type="button" id="presetSaveBtn" class="ctrl-btn small">저장</button>
+      </div>
+      <div id="presetMsgSave" class="preset-msg" role="status"></div>
+    </div>
+
+    <div class="estimate">
+      <span>예상 총 시간</span>
+      <strong id="estimateText" class="mono">-</strong>
+    </div>
+
+    <button class="primary-btn" id="startBtn">시작하기</button>
+
+    <button type="button" id="presetToggleBtn" class="ctrl-btn preset-toggle" aria-expanded="false" aria-controls="presetList">저장된 프리셋</button>
+    <div id="presetList" class="preset-list" hidden></div>
+    <div id="presetMsgTop" class="preset-msg" role="status"></div>
+
+    <div class="field" style="flex-direction:column; align-items:stretch; gap:10px; margin-top:32px; border-top:1px solid var(--line); border-bottom:none;">
+      <label>음성 선택
+        <span class="sub">기기에 설치된 음성엔진에 따라 소리 품질이 다를 수 있어요. 뭉개져 들리면 다른 음성으로 바꿔보세요.</span>
+      </label>
+      <div class="preset-row">
+        <select id="voiceSelect" class="ctl"></select>
+        <button type="button" id="voiceTestBtn" class="ctrl-btn small">미리듣기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Workout screen ===== -->
+  <div id="workout">
+    <p class="round-tag">라운드 <strong id="roundNow">1</strong> / <span id="roundTotal">5</span></p>
+
+    <div class="ring-wrap">
+      <svg viewBox="0 0 280 280">
+        <circle class="ring-track" cx="140" cy="140" r="122"></circle>
+        <circle class="ring-progress" id="ringProgress" cx="140" cy="140" r="122"
+                stroke="#ff5a36" stroke-dasharray="766.5" stroke-dashoffset="0"></circle>
+      </svg>
+      <div class="ring-center">
+        <div class="phase-label ready" id="phaseLabel">준비</div>
+        <div class="timer-num mono" id="timerNum">3.0</div>
+        <div class="rep-count" id="repCountLabel">&nbsp;</div>
+      </div>
+    </div>
+
+    <div class="dots" id="dots"></div>
+
+    <div class="controls">
+      <button class="ctrl-btn" id="resetBtn">리셋</button>
+      <button class="ctrl-btn main" id="pauseBtn">일시정지</button>
+    </div>
+  </div>
+
+  <!-- ===== Done screen ===== -->
+  <div id="done">
+    <p class="eyebrow">완료</p>
+    <div class="big">운동이 끝났습니다 🎉</div>
+    <div class="sub">수고하셨습니다. 다시 설정하려면 아래를 눌러주세요.</div>
+    <button class="primary-btn" id="restartBtn">다시 설정하기</button>
+  </div>
+
+</div>
+
+<div class="copyright">© Hannjoo Lee, KSC/PCC · hannjoo@gmail.com</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- Elements ----------
+  const setupEl = document.getElementById('setup');
+  const workoutEl = document.getElementById('workout');
+  const doneEl = document.getElementById('done');
+
+  const roundNowEl = document.getElementById('roundNow');
+  const roundTotalEl = document.getElementById('roundTotal');
+  const phaseLabelEl = document.getElementById('phaseLabel');
+  const timerNumEl = document.getElementById('timerNum');
+  const repCountLabelEl = document.getElementById('repCountLabel');
+  const dotsEl = document.getElementById('dots');
+  const ringProgressEl = document.getElementById('ringProgress');
+  const pauseBtn = document.getElementById('pauseBtn');
+  const estimateText = document.getElementById('estimateText');
+
+  const RING_CIRC = 2 * Math.PI * 122;
+
+  // ---------- Number steppers ----------
+  document.querySelectorAll('.num-input button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const input = document.getElementById(btn.dataset.target);
+      const step = parseFloat(btn.dataset.step);
+      const min = parseFloat(input.min || '0');
+      let val = parseFloat(input.value) + step;
+      if (val < min) val = min;
+      val = Math.round(val * 10) / 10;
+      input.value = val;
+      updateEstimate();
+    });
+  });
+  ['workTime','repCount','restTime','rounds'].forEach(id=>{
+    document.getElementById(id).addEventListener('input', updateEstimate);
+  });
+
+  function readSettings(){
+    return {
+      workTime: Math.max(0.1, parseFloat(document.getElementById('workTime').value) || 0.1),
+      repCount: Math.max(1, Math.round(parseFloat(document.getElementById('repCount').value) || 1)),
+      restTime: Math.max(1, Math.round(parseFloat(document.getElementById('restTime').value) || 1)),
+      rounds: Math.max(1, Math.round(parseFloat(document.getElementById('rounds').value) || 1)),
+    };
+  }
+
+  function updateEstimate(){
+    const s = readSettings();
+    const totalSec = s.rounds * s.workTime * s.repCount + (s.rounds - 1) * s.restTime;
+    const m = Math.floor(totalSec / 60);
+    const sec = Math.round(totalSec % 60);
+    estimateText.textContent = (m > 0 ? m + '분 ' : '') + sec + '초';
+  }
+  updateEstimate();
+
+  // ---------- Presets (stored in this browser's localStorage) ----------
+  const PRESET_KEY = 'tabata_presets';
+  const presetToggleBtn = document.getElementById('presetToggleBtn');
+  const presetListEl = document.getElementById('presetList');
+  const presetNameEl = document.getElementById('presetName');
+  const presetSaveBtn = document.getElementById('presetSaveBtn');
+  const presetMsgTopEl = document.getElementById('presetMsgTop');
+  const presetMsgSaveEl = document.getElementById('presetMsgSave');
+  const msgTimers = new WeakMap();
+  let armedDeleteName = null;
+  let armTimer = null;
+
+  function loadPresets(){
+    try {
+      const raw = localStorage.getItem(PRESET_KEY);
+      const arr = raw ? JSON.parse(raw) : [];
+      return Array.isArray(arr) ? arr.filter(p => p && typeof p.name === 'string') : [];
+    } catch (e){
+      return [];
+    }
+  }
+  function storePresets(list){
+    try {
+      localStorage.setItem(PRESET_KEY, JSON.stringify(list));
+      return true;
+    } catch (e){
+      return false;
+    }
+  }
+  function showMsg(el, text, ms){
+    el.textContent = text;
+    clearTimeout(msgTimers.get(el));
+    msgTimers.set(el, setTimeout(() => { el.textContent = ''; }, ms || 3500));
+  }
+  function presetSummary(p){
+    return p.workTime + '초×' + p.repCount + '회 · 휴식 ' + p.restTime + '초 · ' + p.rounds + '라운드';
+  }
+  function applyPreset(p){
+    document.getElementById('workTime').value = (Math.round(p.workTime * 10) / 10).toFixed(1);
+    document.getElementById('repCount').value = p.repCount;
+    document.getElementById('restTime').value = p.restTime;
+    document.getElementById('rounds').value = p.rounds;
+    updateEstimate();
+  }
+  function setPresetListOpen(open){
+    presetListEl.hidden = !open;
+    presetToggleBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) renderPresetList();
+  }
+  function updateToggleLabel(){
+    const n = loadPresets().length;
+    presetToggleBtn.textContent = '저장된 프리셋' + (n ? ' (' + n + ')' : '');
+  }
+  function disarmDelete(){
+    clearTimeout(armTimer);
+    armedDeleteName = null;
+  }
+  function renderPresetList(){
+    const list = loadPresets();
+    presetListEl.innerHTML = '';
+    if (!list.length){
+      const empty = document.createElement('div');
+      empty.className = 'preset-empty';
+      empty.textContent = '저장된 프리셋이 없어요. 위에서 설정을 맞춘 뒤 이름을 적고 저장해 보세요.';
+      presetListEl.appendChild(empty);
+      return;
+    }
+    list.forEach(p => {
+      const row = document.createElement('div');
+      row.className = 'preset-item';
+
+      const loadBtn = document.createElement('button');
+      loadBtn.type = 'button';
+      loadBtn.className = 'load';
+      loadBtn.textContent = p.name;
+      const small = document.createElement('small');
+      small.textContent = presetSummary(p);
+      loadBtn.appendChild(small);
+      loadBtn.addEventListener('click', () => {
+        applyPreset(p);
+        disarmDelete();
+        setPresetListOpen(false);
+        showMsg(presetMsgTopEl, '‘' + p.name + '’ 불러옴 · ' + presetSummary(p) + ' — 위 설정에 반영됐어요.', 5000);
+      });
+
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'del' + (armedDeleteName === p.name ? ' armed' : '');
+      delBtn.textContent = armedDeleteName === p.name ? '한 번 더' : '삭제';
+      delBtn.addEventListener('click', () => {
+        if (armedDeleteName !== p.name){
+          // first tap arms the delete (no confirm() dialog; some in-app browsers block it)
+          armedDeleteName = p.name;
+          clearTimeout(armTimer);
+          armTimer = setTimeout(() => { armedDeleteName = null; if (!presetListEl.hidden) renderPresetList(); }, 3000);
+          renderPresetList();
+          return;
+        }
+        disarmDelete();
+        storePresets(loadPresets().filter(x => x.name !== p.name));
+        updateToggleLabel();
+        renderPresetList();
+        showMsg(presetMsgTopEl, '‘' + p.name + '’ 프리셋을 삭제했어요.');
+      });
+
+      row.appendChild(loadBtn);
+      row.appendChild(delBtn);
+      presetListEl.appendChild(row);
+    });
+  }
+
+  presetToggleBtn.addEventListener('click', () => {
+    disarmDelete();
+    setPresetListOpen(presetListEl.hidden);
+  });
+
+  function saveCurrentAsPreset(){
+    const name = presetNameEl.value.trim();
+    if (!name){
+      showMsg(presetMsgSaveEl, '프리셋 이름을 입력해 주세요.');
+      presetNameEl.focus();
+      return;
+    }
+    const s = readSettings();
+    const entry = {
+      name: name,
+      workTime: Math.round(s.workTime * 10) / 10,
+      repCount: s.repCount,
+      restTime: s.restTime,
+      rounds: s.rounds
+    };
+    const list = loadPresets();
+    const idx = list.findIndex(p => p.name === name);
+    const overwrote = idx >= 0;
+    if (overwrote) list[idx] = entry; else list.push(entry);
+    if (!storePresets(list)){
+      showMsg(presetMsgSaveEl, '이 브라우저에서는 저장할 수 없어요.');
+      return;
+    }
+    updateToggleLabel();
+    if (!presetListEl.hidden) renderPresetList();
+    presetNameEl.value = '';
+    showMsg(presetMsgSaveEl, overwrote ? '‘' + name + '’ 프리셋을 덮어썼어요.' : '‘' + name + '’ 프리셋으로 저장했어요.');
+  }
+  presetSaveBtn.addEventListener('click', saveCurrentAsPreset);
+  presetNameEl.addEventListener('keydown', e => {
+    if (e.key === 'Enter'){ e.preventDefault(); saveCurrentAsPreset(); }
+  });
+
+  updateToggleLabel();
+
+  // ---------- Korean native counting words (1-99) ----------
+  const ONES = ['', '하나','둘','셋','넷','다섯','여섯','일곱','여덟','아홉'];
+  const TENS = ['', '열','스물','서른','마흔','쉰','예순','일흔','여든','아흔'];
+  function koCount(n){
+    if (n < 1) return String(n);
+    if (n <= 9) return ONES[n];
+    if (n <= 99){
+      const t = Math.floor(n/10), o = n%10;
+      return TENS[t] + (o ? ONES[o] : '');
+    }
+    return String(n); // fallback for very large rep counts
+  }
+
+  // Korean native ordinal words (1st, 2nd, 3rd... up to 99th) for round announcements
+  const ORD_ONES = ['', '첫','두','세','네','다섯','여섯','일곱','여덟','아홉'];
+  const ORD_TENS_ALONE = ['', '열','스무','서른','마흔','쉰','예순','일흔','여든','아흔']; // exact multiples of 10
+  const ORD_TENS_COMBINE = ['', '열','스물','서른','마흔','쉰','예순','일흔','여든','아흔']; // combined with ones
+  const ORD_ONES_COMBINE = ['', '한','두','세','네','다섯','여섯','일곱','여덟','아홉'];
+  function koOrdinal(n){
+    if (n < 1) return String(n) + '번째';
+    if (n <= 9) return ORD_ONES[n] + '번째';
+    if (n <= 99){
+      const t = Math.floor(n/10), o = n%10;
+      if (o === 0) return ORD_TENS_ALONE[t] + '번째';
+      return ORD_TENS_COMBINE[t] + ORD_ONES_COMBINE[o] + '번째';
+    }
+    return n + '번째'; // fallback for very large round counts
+  }
+
+  // ---------- Speech ----------
+  let koVoice = null;
+  const voiceSelectEl = document.getElementById('voiceSelect');
+  const voiceTestBtn = document.getElementById('voiceTestBtn');
+
+  function populateVoices(){
+    if (!('speechSynthesis' in window)) return;
+    const voices = speechSynthesis.getVoices();
+    if (!voices.length) return; // will retry on onvoiceschanged
+    const koVoices = voices.filter(v => v.lang && v.lang.toLowerCase().startsWith('ko'));
+    const list = koVoices.length ? koVoices : voices; // fall back to all voices if no Korean voice exists
+
+    const prevValue = voiceSelectEl.value;
+    voiceSelectEl.innerHTML = '';
+    list.forEach(v => {
+      const opt = document.createElement('option');
+      opt.value = v.name;
+      opt.textContent = v.name + (v.lang ? ' (' + v.lang + ')' : '') + (v.localService ? '' : ' · 온라인');
+      voiceSelectEl.appendChild(opt);
+    });
+
+    let saved = null;
+    try { saved = localStorage.getItem('tabata_voice_name'); } catch (e) {}
+    if (saved && list.some(v => v.name === saved)) voiceSelectEl.value = saved;
+    else if (prevValue && list.some(v => v.name === prevValue)) voiceSelectEl.value = prevValue;
+
+    applySelectedVoice();
+  }
+  function applySelectedVoice(){
+    const voices = speechSynthesis.getVoices();
+    koVoice = voices.find(v => v.name === voiceSelectEl.value) || null;
+    try { localStorage.setItem('tabata_voice_name', voiceSelectEl.value); } catch (e) {}
+  }
+  if ('speechSynthesis' in window){
+    populateVoices();
+    speechSynthesis.onvoiceschanged = populateVoices;
+  }
+  voiceSelectEl.addEventListener('change', applySelectedVoice);
+  voiceTestBtn.addEventListener('click', () => speak('하나 둘 셋 넷 다섯'));
+
+  // Our own FIFO queue: only start the next word once the browser fires onend for
+  // the current one, with a short breathing gap in between. Relying on speechSynthesis's
+  // built-in queue (or cancel()+speak()) can overlap/garble audio on some mobile TTS engines.
+  let speechQueue = [];
+  let speaking = false;
+  function speak(text){
+    if (!('speechSynthesis' in window)) return;
+    speechQueue.push(text);
+    processSpeechQueue();
+  }
+  function processSpeechQueue(){
+    if (speaking || speechQueue.length === 0) return;
+    const text = speechQueue.shift();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'ko-KR';
+    if (koVoice) u.voice = koVoice;
+    u.rate = 1.0;
+    u.pitch = 1.0;
+    u.volume = 1.0;
+    speaking = true;
+    const advance = () => { speaking = false; setTimeout(processSpeechQueue, 120); };
+    u.onend = advance;
+    u.onerror = advance;
+    speechSynthesis.speak(u);
+  }
+  function clearSpeechQueue(){
+    speechQueue = [];
+    speaking = false;
+    if ('speechSynthesis' in window) speechSynthesis.cancel();
+  }
+
+  // ---------- Schedule builder ----------
+  function buildSchedule(s){
+    const workMs = Math.round(s.workTime * 1000);
+    const restMs = Math.round(s.restTime * 1000);
+    let t = 0;
+    const events = [];
+    const segments = [];
+
+    for (let r = 1; r <= s.rounds; r++){
+      const workStart = t;
+      for (let rep = 1; rep <= s.repCount; rep++){
+        events.push({ t, type:'rep', round:r, repInRound:rep, done:false });
+        t += workMs;
+      }
+      segments.push({ type:'work', round:r, tStart:workStart, tEnd:t, repCount:s.repCount, workMs });
+
+      if (r < s.rounds){
+        const restStart = t;
+        events.push({ t, type:'restStart', round:r, done:false });
+        let mark = Math.floor((s.restTime - 0.0001) / 5) * 5;
+        for (; mark > 0; mark -= 5){
+          const offsetSec = s.restTime - mark;
+          events.push({ t: restStart + Math.round(offsetSec * 1000), type:'restAnnounce', seconds: mark, done:false });
+        }
+        // Preview the upcoming round 5 seconds before rest ends (or right away if rest is under 5s)
+        const nextRound = r + 1;
+        const announceText = (nextRound === s.rounds)
+          ? '마지막 라운드입니다.'
+          : (koOrdinal(nextRound) + ' 라운드 시작합니다.');
+        const announceOffsetMs = Math.max(0, restMs - 5000);
+        events.push({ t: restStart + announceOffsetMs, type:'roundAnnounce', text: announceText, done:false });
+
+        t += restMs;
+        segments.push({ type:'rest', round:r, tStart:restStart, tEnd:t });
+      }
+    }
+    events.sort((a,b) => a.t - b.t);
+    return { events, segments, total: t };
+  }
+
+  // ---------- State ----------
+  let settings = null;
+  let schedule = null;
+  let mainStartTime = null;
+  let pausedAccum = 0;
+  let pauseStartedAt = null;
+  let rafId = null;
+  let finished = false;
+  let readyTimeouts = [];
+  let wakeLock = null;
+  let noSleepVideo = null;
+
+  // ---------- Screen Wake Lock (keeps screen on so audio keeps firing) ----------
+  async function requestWakeLock(){
+    if (!('wakeLock' in navigator)) return;
+    try {
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => { wakeLock = null; });
+    } catch (e){
+      wakeLock = null; // permission denied, unsupported, or low battery mode — fail silently
+    }
+  }
+  function releaseWakeLock(){
+    if (wakeLock){
+      wakeLock.release().catch(() => {});
+      wakeLock = null;
+    }
+  }
+
+  // ---------- Fallback: silent looping video ----------
+  // Some mobile WebViews (in-app browsers, some Android browsers) don't support the
+  // Wake Lock API at all. Playing an actual (silent, invisible) video is a much more
+  // widely supported way to stop the OS from turning the screen off, since active
+  // media playback keeps the page/process alive. Built from a canvas stream so no
+  // external video file is needed.
+  function startNoSleepVideo(){
+    if (noSleepVideo) return;
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = 2;
+      canvas.height = 2;
+      canvas.getContext('2d').fillRect(0, 0, 2, 2);
+      if (!canvas.captureStream) return;
+      const stream = canvas.captureStream(1);
+      const video = document.createElement('video');
+      video.setAttribute('playsinline', '');
+      video.setAttribute('muted', '');
+      video.muted = true;
+      video.loop = true;
+      video.style.position = 'fixed';
+      video.style.width = '1px';
+      video.style.height = '1px';
+      video.style.opacity = '0.01';
+      video.style.pointerEvents = 'none';
+      video.srcObject = stream;
+      document.body.appendChild(video);
+      const playPromise = video.play();
+      if (playPromise && playPromise.catch) playPromise.catch(() => {});
+      noSleepVideo = video;
+    } catch (e){
+      noSleepVideo = null;
+    }
+  }
+  function stopNoSleepVideo(){
+    if (noSleepVideo){
+      try {
+        noSleepVideo.pause();
+        noSleepVideo.srcObject = null;
+        noSleepVideo.remove();
+      } catch (e){}
+      noSleepVideo = null;
+    }
+  }
+  function keepScreenAwake(){
+    requestWakeLock();
+    startNoSleepVideo();
+  }
+  function allowScreenSleep(){
+    releaseWakeLock();
+    stopNoSleepVideo();
+  }
+  // Wake lock is auto-released when the tab is hidden, and some browsers pause the
+  // video too; re-acquire both whenever the page becomes visible again mid-workout.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && workoutEl.style.display === 'block' && !finished){
+      keepScreenAwake();
+    }
+  });
+
+  function getElapsed(){
+    if (mainStartTime === null) return 0;
+    const now = pauseStartedAt ? pauseStartedAt : Date.now();
+    return now - mainStartTime - pausedAccum;
+  }
+
+  function handleEvent(ev){
+    if (ev.type === 'rep'){
+      speak(koCount(ev.repInRound));
+    } else if (ev.type === 'restStart'){
+      speak('휴식시간입니다.');
+    } else if (ev.type === 'restAnnounce'){
+      speak(ev.seconds + '초 남았습니다.');
+    } else if (ev.type === 'roundAnnounce'){
+      speak(ev.text);
+    }
+  }
+
+  function findSegment(elapsed){
+    for (const seg of schedule.segments){
+      if (elapsed >= seg.tStart && elapsed < seg.tEnd) return seg;
+    }
+    return schedule.segments[schedule.segments.length - 1];
+  }
+
+  function renderDots(seg, currentRep){
+    const count = seg.type === 'work' ? seg.repCount : 0;
+    if (dotsEl.childElementCount !== count){
+      dotsEl.innerHTML = '';
+      for (let i = 1; i <= count; i++){
+        const d = document.createElement('div');
+        d.className = 'dot';
+        dotsEl.appendChild(d);
+      }
+    }
+    Array.from(dotsEl.children).forEach((d, idx) => {
+      const rep = idx + 1;
+      d.classList.toggle('filled', rep < currentRep);
+      d.classList.toggle('current', rep === currentRep);
+    });
+  }
+
+  function updateDisplay(elapsed){
+    const seg = findSegment(elapsed);
+    roundNowEl.textContent = seg.round;
+    roundTotalEl.textContent = settings.rounds;
+
+    if (seg.type === 'work'){
+      const rep = Math.min(seg.repCount, Math.floor((elapsed - seg.tStart) / seg.workMs) + 1);
+      const remaining = Math.max(0, (seg.tEnd - elapsed) / 1000);
+      phaseLabelEl.textContent = '운동';
+      phaseLabelEl.className = 'phase-label work';
+      timerNumEl.textContent = remaining.toFixed(1);
+      repCountLabelEl.innerHTML = '동작 <strong>' + rep + '</strong> / ' + seg.repCount;
+      ringProgressEl.setAttribute('stroke', 'var(--work)');
+      const frac = 1 - ((elapsed - seg.tStart) / (seg.tEnd - seg.tStart));
+      ringProgressEl.style.strokeDashoffset = RING_CIRC * (1 - frac);
+      renderDots(seg, rep);
+    } else {
+      const remaining = Math.max(0, Math.ceil((seg.tEnd - elapsed) / 1000));
+      phaseLabelEl.textContent = '휴식';
+      phaseLabelEl.className = 'phase-label rest';
+      timerNumEl.textContent = remaining;
+      repCountLabelEl.textContent = '다음 라운드 준비';
+      ringProgressEl.setAttribute('stroke', 'var(--rest)');
+      const frac = 1 - ((elapsed - seg.tStart) / (seg.tEnd - seg.tStart));
+      ringProgressEl.style.strokeDashoffset = RING_CIRC * (1 - frac);
+      dotsEl.innerHTML = '';
+    }
+  }
+
+  function tick(){
+    if (finished) return;
+    const elapsed = getElapsed();
+    for (const ev of schedule.events){
+      if (!ev.done && ev.t <= elapsed){
+        ev.done = true;
+        handleEvent(ev);
+      }
+    }
+    if (elapsed >= schedule.total){
+      updateDisplay(schedule.total - 1);
+      onFinish();
+      return;
+    }
+    updateDisplay(elapsed);
+    rafId = requestAnimationFrame(tick);
+  }
+
+  function onFinish(){
+    finished = true;
+    speak('운동이 끝났습니다. 수고하셨습니다!');
+    workoutEl.style.display = 'none';
+    doneEl.style.display = 'block';
+    releaseWakeLock();
+    stopNoSleepVideo();
+  }
+
+  function runReadyCountdown(cb){
+    phaseLabelEl.textContent = '준비';
+    phaseLabelEl.className = 'phase-label ready';
+    repCountLabelEl.textContent = '곧 시작합니다';
+    ringProgressEl.setAttribute('stroke', 'var(--ready)');
+    ringProgressEl.style.strokeDashoffset = 0;
+    dotsEl.innerHTML = '';
+    roundNowEl.textContent = 1;
+    roundTotalEl.textContent = settings.rounds;
+
+    let n = 3;
+    timerNumEl.textContent = n.toFixed(1);
+    speak(String(n));
+    readyTimeouts.push(setTimeout(function step(){
+      n -= 1;
+      if (n > 0){
+        timerNumEl.textContent = n.toFixed(1);
+        speak(String(n));
+        readyTimeouts.push(setTimeout(step, 1000));
+      } else {
+        speak('시작');
+        timerNumEl.textContent = '0.0';
+        readyTimeouts.push(setTimeout(cb, 500));
+      }
+    }, 1000));
+  }
+
+  // ---------- Controls ----------
+  document.getElementById('startBtn').addEventListener('click', () => {
+    settings = readSettings();
+    schedule = buildSchedule(settings);
+    finished = false;
+    pausedAccum = 0;
+    pauseStartedAt = null;
+    mainStartTime = null;
+    pauseBtn.textContent = '일시정지';
+
+    setupEl.style.display = 'none';
+    doneEl.style.display = 'none';
+    workoutEl.style.display = 'block';
+    keepScreenAwake();
+
+    runReadyCountdown(() => {
+      mainStartTime = Date.now();
+      tick();
+    });
+  });
+
+  pauseBtn.addEventListener('click', () => {
+    if (mainStartTime === null) return; // still in ready countdown
+    if (!pauseStartedAt){
+      pauseStartedAt = Date.now();
+      if (rafId) cancelAnimationFrame(rafId);
+      if ('speechSynthesis' in window) speechSynthesis.pause();
+      pauseBtn.textContent = '계속하기';
+    } else {
+      pausedAccum += Date.now() - pauseStartedAt;
+      pauseStartedAt = null;
+      if ('speechSynthesis' in window) speechSynthesis.resume();
+      pauseBtn.textContent = '일시정지';
+      tick();
+    }
+  });
+
+  function resetAll(){
+    readyTimeouts.forEach(clearTimeout);
+    readyTimeouts = [];
+    if (rafId) cancelAnimationFrame(rafId);
+    if ('speechSynthesis' in window) clearSpeechQueue();
+    releaseWakeLock();
+    stopNoSleepVideo();
+    mainStartTime = null;
+    pausedAccum = 0;
+    pauseStartedAt = null;
+    finished = false;
+    workoutEl.style.display = 'none';
+    doneEl.style.display = 'none';
+    setupEl.style.display = 'block';
+    updateEstimate();
+  }
+
+  document.getElementById('resetBtn').addEventListener('click', resetAll);
+  document.getElementById('restartBtn').addEventListener('click', resetAll);
+
+})();
+</script>
+</body>
+</html>
