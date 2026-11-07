@@ -23,16 +23,15 @@
     --ready-dim: #6b5720;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
-  html,body{height:100%;}
+  html{height:100%;}
   body{
     margin:0;
     background:var(--bg);
     color:var(--text);
     font-family:'Space Grotesk', sans-serif;
     min-height:100vh;
+    min-height:100dvh;
     display:flex;
-    align-items:center;
-    justify-content:center;
     padding:24px;
   }
   .mono{ font-family:'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
@@ -41,6 +40,7 @@
   .card{
     width:100%;
     max-width:460px;
+    margin:auto;
   }
   .eyebrow{
     font-size:18px;
